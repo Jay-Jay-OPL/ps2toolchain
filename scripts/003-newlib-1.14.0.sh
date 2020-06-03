@@ -1,9 +1,9 @@
 #!/bin/bash
-# newlib-1.10.0.sh by Naomi Peori (naomi@peori.ca)
+# newlib-1.14.0.sh by Naomi Peori (naomi@peori.ca)
 
-NEWLIB_VERSION=1.10.0
+NEWLIB_VERSION=1.14.0
 ## Download the source code.
-SOURCE=ftp://sourceware.org/pub/newlib/newlib-$NEWLIB_VERSION.tar.gz
+SOURCE=http://mirrors.kernel.org/sourceware/newlib/newlib-$NEWLIB_VERSION.tar.gz
 wget --continue $SOURCE || { exit 1; }
 
 ## Unpack the source code.
@@ -16,11 +16,16 @@ if [ -e ../../patches/newlib-$NEWLIB_VERSION-PS2.patch ]; then
 	cat ../../patches/newlib-$NEWLIB_VERSION-PS2.patch | patch -p1 || { exit 1; }
 fi
 
-## Determine the maximum number of processes that Make can work with.
-## MinGW's Make doesn't work properly with multi-core processors.
 OSVER=$(uname)
-if [ ${OSVER:0:10} == MINGW32_NT ]; then
-	PROC_NR=2
+if [ ${OSVER:0:10} == MINGW64_NT ]; then
+	TARG_XTRA_OPTS="--build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
+else
+	TARG_XTRA_OPTS=""
+fi
+
+## Determine the maximum number of processes that Make can work with.
+if [ ${OSVER:0:5} == MINGW ]; then
+	PROC_NR=$NUMBER_OF_PROCESSORS
 elif [ ${OSVER:0:6} == Darwin ]; then
 	PROC_NR=$(sysctl -n hw.ncpu)
 else
@@ -32,7 +37,7 @@ TARGET="ee"
 mkdir build-$TARGET && cd build-$TARGET || { exit 1; }
 
 ## Configure the build.
-../configure --prefix="$PS2DEV/$TARGET" --target="$TARGET" || { exit 1; }
+../configure --quiet --prefix="$PS2DEV/$TARGET" --target="$TARGET" $TARG_XTRA_OPTS || { exit 1; }
 
 ## Compile and install.
-make clean && CPPFLAGS="-G0" make -j $PROC_NR && make install && make clean || { exit 1; }
+make --quiet clean && CPPFLAGS="-G0" make --quiet -j $PROC_NR && make --quiet install && make --quiet clean || { exit 1; }
